@@ -24,10 +24,10 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     }
 
     if (index >= _first_unread_index + _capacity) return;
-    if (index + data.size() <= _first_unread_index) return;
+    if (index + data.size() <= _first_unassemble_index) return;
 
-    // 只合并[_first_unread_index,_fist_acceptable_index)
-    int left = max(index, _first_unread_index), right = min(index + data.size(), _first_unread_index + _capacity);
+    // 只合并[_first_unassemble_index,_fist_acceptable_index)
+    int left = max(index, _first_unassemble_index), right = min(index + data.size(), _first_unread_index + _capacity);
     int nl = left, nr = right;
     string s = data.substr(left - index, right - left);
 
