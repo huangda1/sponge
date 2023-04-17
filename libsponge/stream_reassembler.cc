@@ -22,38 +22,36 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     if (_eof_index != -1 && _first_unassemble_index == static_cast<size_t>(_eof_index)) {
         _output.end_input();
     }
-
     // cerr << index << ' ' << data.size() << ' ' << _first_unread_index << ' ' << _first_unassemble_index << endl;
-    if (index >= _first_unread_index + _capacity) return;
-    if (index + data.size() < _first_unassemble_index) return;
+    if (!(index >= _first_unread_index + _capacity || index + data.size() <= _first_unassemble_index)) {
+        // 只合并[_first_unassemble_index,_fist_acceptable_index), 且要保证每次stream都进行write（即使不合并也能更新_first_unread_index）
+        int left = max(index, _first_unassemble_index), right = min(index + data.size(), _first_unread_index + _capacity);
+        int nl = left, nr = right;
+        string s = data.substr(left - index, right - left);
 
-    // 只合并[_first_unassemble_index,_fist_acceptable_index)
-    int left = max(index, _first_unassemble_index), right = min(index + data.size(), _first_unread_index + _capacity);
-    int nl = left, nr = right;
-    string s = data.substr(left - index, right - left);
-
-    while (true) {
-        auto it = _index_to_str.lower_bound(index);
-        if (it == _index_to_str.end()) break;
-        
-        int l = it->first - it->second.size(), r = it->first;
-        if (l > right) break;
-        // 维护s
-        if (l < nl) {
-            s = it->second.substr(0, nl - l) + s;
-            nl = l;
+        while (true) {
+            auto it = _index_to_str.lower_bound(index);
+            if (it == _index_to_str.end()) break;
+            
+            int l = it->first - it->second.size(), r = it->first;
+            if (l > right) break;
+            // 维护s
+            if (l < nl) {
+                s = it->second.substr(0, nl - l) + s;
+                nl = l;
+            }
+            
+            if (r > nr) {
+                s = s + it->second.substr(nr - l);
+                nr = r;
+            }
+            _unassemble_size -= r - l;
+            _index_to_str.erase(it);
         }
-        
-        if (r > nr) {
-            s = s + it->second.substr(nr - l);
-            nr = r;
-        }
-        _unassemble_size -= r - l;
-        _index_to_str.erase(it);
+        // 插入s
+        _index_to_str[nr] = s;
+        _unassemble_size += s.size();
     }
-    // 插入s
-    _index_to_str[nr] = s;
-    _unassemble_size += s.size();
 
     while (true) {
         auto it = _index_to_str.upper_bound(_first_unassemble_index);
@@ -69,6 +67,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         auto it = _index_to_str.begin();
         if (it != _index_to_str.end() && it->first - it->second.size() == _first_unread_index) {
             const size_t write_bytes = _output.write(it->second);
+            // cerr << it->first << ' ' << it->second << ' ' << write_bytes << endl;
             // str能不能被全写
             if (write_bytes == it->second.size()) {
                 _first_unread_index = it->first;
