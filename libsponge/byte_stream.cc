@@ -28,9 +28,9 @@ size_t ByteStream::write(const string &data) {
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
-    assert(len <= _size);
+    size_t peek_size = min(len, _size);
     string res;
-    for (size_t i = 0; i < len; i++) {
+    for (size_t i = 0; i < peek_size; i++) {
         res += _data[(_head + i) % _cap];
     }
     return res;
@@ -38,10 +38,11 @@ string ByteStream::peek_output(const size_t len) const {
 
 //! \param[in] len bytes will be removed from the output side of the buffer
 void ByteStream::pop_output(const size_t len) { 
-    assert(len <= _size);
-    _bytes_read += len;
-    _size -= len;
-    for (size_t i = 0; i < len; i++) {
+    // assert(len <= _size);
+    size_t pop_size = min(len, _size);
+    _bytes_read += pop_size;
+    _size -= pop_size;
+    for (size_t i = 0; i < pop_size; i++) {
         _head = (_head + 1) % _cap;
     }
 }
