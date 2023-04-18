@@ -9,6 +9,43 @@
 #include <functional>
 #include <queue>
 
+
+class Timer {
+  private:
+    unsigned int _RTO = 0;
+    unsigned int _time = 0;
+    bool _running = false;
+
+  public:
+    Timer() {};
+    Timer(unsigned int rto): _RTO(rto) {};
+
+    void init(unsigned int rto) {
+      _time = 0;
+      _RTO = rto;
+    }
+
+    void update_time(const size_t t) {
+      _time += t;
+    }
+
+    bool is_expired() {
+      return _time >= _RTO;
+    }
+
+    bool is_running() {
+      return _running;
+    }
+
+    void start() {
+      _running = true;
+    }
+
+    void stop() {
+      _running = false;
+    }
+};
+
 //! \brief The "sender" part of a TCP implementation.
 
 //! Accepts a ByteStream, divides it up into segments and sends the
@@ -31,6 +68,20 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
+
+    // keep tracing of the outstanding segments
+    std::queue<std::pair<uint64_t, TCPSegment>> _outstanding_segs{}; // key：the last abs_seqno of TCPseg
+    size_t _outstanding_bytes{0};
+    size_t _window_size{1};
+    bool _set_syn_flag{false};
+    bool _set_fin_flag{false};
+
+    // 
+    Timer _timer;
+    unsigned int _RTO;
+
+    // 
+    unsigned int _consecutive_retransmissions_num{0};
 
   public:
     //! Initialize a TCPSender
@@ -88,5 +139,6 @@ class TCPSender {
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
 };
+
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
