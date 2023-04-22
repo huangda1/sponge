@@ -20,23 +20,33 @@ class TCPConnection {
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
+    bool _active{true};
+    size_t _time_since_last_segment_received{0};
+
+    bool _send_with_ackno_and_win();
+    void _send_rst_seg();
+    // pre#1 The inbound stream has been fully assembled and has ended.
+    bool _check_inbound_ended();
+    // pre#2 The outbound stream has been ended by the local application and fully sent (including the fact that it ended, i.e. a segment with fin ) to the remote peer.
+    // pre#3 The outbound stream has been fully acknowledged by the remote peer.
+    bool _check_outbound_ended();
 
   public:
     //! \name "Input" interface for the writer
     //!@{
 
     //! \brief Initiate a connection by sending a SYN segment
-    void connect();
+    void connect(); // fill_window
 
     //! \brief Write data to the outbound byte stream, and send it over TCP if possible
     //! \returns the number of bytes from `data` that were actually written.
-    size_t write(const std::string &data);
+    size_t write(const std::string &data); // sender.stream_in().write(data), fill_window
 
     //! \returns the number of `bytes` that can be written right now.
-    size_t remaining_outbound_capacity() const;
+    size_t remaining_outbound_capacity() const; // sender.stream_in().remaining_capacity()
 
     //! \brief Shut down the outbound byte stream (still allows reading incoming data)
-    void end_input_stream();
+    void end_input_stream(); // sender.stream_in().end_input()
     //!@}
 
     //! \name "Output" interface for the reader
@@ -50,9 +60,9 @@ class TCPConnection {
 
     //!@{
     //! \brief number of bytes sent and not yet acknowledged, counting SYN/FIN each as one byte
-    size_t bytes_in_flight() const;
+    size_t bytes_in_flight() const; // sender.bytes_in_flight()
     //! \brief number of bytes not yet reassembled
-    size_t unassembled_bytes() const;
+    size_t unassembled_bytes() const; // receiver.unassembled_bytes()
     //! \brief Number of milliseconds since the last segment was received
     size_t time_since_last_segment_received() const;
     //!< \brief summarize the state of the sender, receiver, and the connection
@@ -63,7 +73,7 @@ class TCPConnection {
     //!@{
 
     //! Called when a new segment has been received from the network
-    void segment_received(const TCPSegment &seg);
+    void segment_received(const TCPSegment &seg); // receiver.segment_received()
 
     //! Called periodically when time elapses
     void tick(const size_t ms_since_last_tick);
@@ -77,7 +87,7 @@ class TCPConnection {
     //! \brief Is the connection still alive in any way?
     //! \returns `true` if either stream is still running or if the TCPConnection is lingering
     //! after both streams have finished (e.g. to ACK retransmissions from the peer)
-    bool active() const;
+    bool active() const; 
     //!@}
 
     //! Construct a new connection from a configuration

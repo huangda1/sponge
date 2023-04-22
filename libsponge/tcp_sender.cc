@@ -79,7 +79,7 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     uint64_t abs_ackno = unwrap(ackno, _isn, _next_seqno);
     
     if (abs_ackno > _next_seqno) return false;
-    if (abs_ackno < _outstanding_segs.front().first) return true;
+    if (_outstanding_segs.size() && abs_ackno < _outstanding_segs.front().first) return true;
 
     _RTO = _initial_retransmission_timeout;
     if (_outstanding_segs.size()) {

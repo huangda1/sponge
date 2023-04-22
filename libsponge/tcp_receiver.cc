@@ -3,6 +3,7 @@
 
 // For Lab 2, please replace with a real implementation that passes the
 // automated checks run by `make check_lab2`.
+#include <iostream>
 
 template <typename... Targs>
 void DUMMY_CODE(Targs &&... /* unused */) {}
@@ -19,19 +20,19 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
     if (header.syn) {
         _isn = header.seqno;
     }
-
-    uint64_t abs_ackno = _reassembler.stream_out().bytes_written();
+    
+    uint64_t abs_ackno = _reassembler.stream_out().bytes_written() + 1;
     uint64_t window_sz = window_size();
     uint64_t abs_seqno = unwrap(header.seqno, _isn.value(), abs_ackno);
     uint64_t index = abs_seqno - 1 + header.syn;
 
     _reassembler.push_substring(seg.payload().copy(), index, header.fin);
 
-    if (index + seg.payload().copy().size() == abs_ackno || index == abs_ackno + window_sz) {
+    if (index + seg.payload().copy().size() == abs_ackno - 1 || index == abs_ackno - 1 + window_sz) {
         return !(seg.payload().copy().size());
     }
 
-    return index + seg.payload().copy().size() > abs_ackno && index < abs_ackno + window_sz;
+    return index + seg.payload().copy().size() > abs_ackno - 1 && index < abs_ackno - 1 + window_sz;
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const { 
